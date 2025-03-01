@@ -563,7 +563,7 @@ def run_genetic(bounds=None,POPULATION_SIZE=10,MAX_GENERATIONS=10,
     #toolbox.register("individualCreator", tools.initRepeat, creator.Individual, toolbox.randuni_1, NPARS)
     toolbox.register("populationCreator", tools.initRepeat, list, toolbox.individualCreator)# create the population operator to generate a list of individuals:
 
-   if not cxbin:
+    if not cxbin:
         toolbox.register("mate", tools.cxTwoPoint)
     else:
         toolbox.register("mate", tools.cxSimulatedBinary,eta=etacxbin)
