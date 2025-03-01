@@ -146,8 +146,8 @@ def return_parsdict(groups, pars_per_group=None,pars_per_group_refine=None, fixe
                         parsetnames.append(x+":c")#common input for some but not all
                     parsetnames.extend([x_ for x_ in flat_list_wg if x in x_])
 
-        print("parsetnames_fixed", parsetnames_fixed)
-        print("parsetnames", parsetnames)
+        #print("parsetnames_fixed", parsetnames_fixed)
+        #print("parsetnames", parsetnames)
 
         
 
@@ -363,13 +363,80 @@ def error_and_plot(allpars_,npars=1,refined=False,data=None,additional_data=None
     else:
         return total_error, #return tupple
 
-def error_refine_singlegroup(pars, data=None,idxs_pars=None,reference_parset=None, mask_input=None, errorfunc=None, sysfunc=None):
+def error_and_plot_increasinginput(allpars_,npars=1,refined=False,data=None,additional_data=None,sysfunc=None,errorfunc=None,individual_error=False,plot=False,getparskwargs=None,plotkwargs=None,penaltyinput=0,**kwargs):
+    """
+    pars_per_group to True if allpars_ has already each parameter per group, the first is the xvec_psi
+    """
+    mask_input=getparskwargs["mask_input"]
+    if plot:
+        nrows=plotkwargs["nrow"]
+        ncols=plotkwargs["ncol"]
+        titles=plotkwargs["titles"]
+        fig,axes=plt.subplots(nrows,ncols,figsize=(2*ncols,2*nrows))
+        if nrows>1:
+            axes=axes.flatten()
+        else:
+            if ncols<2:
+                axes=[axes]
+    if refined:
+        idxsdictname="idxsdict_refine"
+    else:
+        idxsdictname="idxsdict_global"
+    allparsets=get_parameters_per_group(allpars_,npars=npars,**getparskwargs, **getparskwargs[idxsdictname])
+    
+    allerror=np.zeros(len(allparsets))
+    ninput=5
+    
+    for g in range(len(allparsets)):
+        xvec_psi=allparsets[g,0:ninput][mask_input[g]]
+        range_n=np.arange(len(xvec_psi))
+        rates=allparsets[g,ninput:]
+        model_g=out_event(rates,xvec_psi,solve_linear_system=sysfunc)
+        #print(model_i)
+        data_g=data[g] #trend
+        add=0
+        if penaltyinput>0:
+            if np.any(np.diff(xvec_psi)<0):
+                add+=penaltyinput
+     
+        allerror[g]=errorfunc(model_g,data_g)+add
+        
+        if plot:
+            ax=axes[g]
+            
+            if additional_data: #thinking about individual data when fitting average behaviour
+                data_g_a=additional_data[g]
+                for j in range(len(data_g_a)):
+                    data_j=data_g_a[j]
+                    ax.plot(range_n,data_j,color="lightgray")
+            ax.plot(range_n,data_g,color="gray",marker="D")
+            ax.plot(range_n,model_g,color="k",marker="o")
+            ax.set_title("%s\nerror=%g"%(titles[g],allerror[g]))
+    total_error=np.sum(allerror)
+    
+    if plot:
+        fig.suptitle("total error=%g"%total_error)
+        plt.tight_layout()
+        plt.show()
+
+    
+
+    if individual_error:
+        return allerror
+    else:
+        return total_error, #return tupple
+
+def error_refine_singlegroup(pars, data=None,idxs_pars=None,reference_parset=None, mask_input=None, errorfunc=None, sysfunc=None, penaltyinput=0):
     parset=reference_parset.copy()
     parset[idxs_pars]=10**pars
     xvec_psi=parset[0:5][mask_input]
     rates=parset[5:]
     model=out_event(rates,xvec_psi,solve_linear_system=sysfunc)
-    return errorfunc(model,data)
+    if np.any(np.diff(xvec_psi)<0):
+        add=penaltyinput
+    else:
+        add=0
+    return errorfunc(model,data)+add
 
 def refine_group_pars(ar, getparskwargs=None, errorargs=None, ninit_refine=10):
     
@@ -406,7 +473,11 @@ def refine_group_pars(ar, getparskwargs=None, errorargs=None, ninit_refine=10):
         bounds_group=boundsdict[group]
         #print(idxs_rates_group)
         x0=np.log10(tooptimpars)
-        minfunc=partial(error_refine_singlegroup,data=data[g],idxs_pars=idxs_pars_group, mask_input=mask_input[g], reference_parset=reference_parset, errorfunc=errorargs["errorfunc"], sysfunc=errorargs["sysfunc"])
+        if "penaltyinput" in errorargs.keys():
+            print("minimizing with penalty input")
+            minfunc=partial(error_refine_singlegroup,data=data[g],idxs_pars=idxs_pars_group, mask_input=mask_input[g], reference_parset=reference_parset, errorfunc=errorargs["errorfunc"], sysfunc=errorargs["sysfunc"], penaltyinput=errorargs["penaltyinput"])
+        else:
+            minfunc=partial(error_refine_singlegroup,data=data[g],idxs_pars=idxs_pars_group, mask_input=mask_input[g], reference_parset=reference_parset, errorfunc=errorargs["errorfunc"], sysfunc=errorargs["sysfunc"])
 
         initial_conditions=[x0]
         
@@ -431,6 +502,9 @@ def refine_group_pars(ar, getparskwargs=None, errorargs=None, ninit_refine=10):
         optim_parset=reference_parset.copy()
         optim_parset[idxs_pars_group]=10**bestpars
         allparsets_optim.append(optim_parset)
+        #print("optim_parset")
+        #print(optim_parset)
+        #print("error", error)
 
     refined_pars_tiled=get_parameters_per_group(np.array(allparsets_optim),expand=False, **getparskwargs, **getparskwargs["idxsdict_refine"])
 
@@ -440,7 +514,7 @@ def refine_group_pars(ar, getparskwargs=None, errorargs=None, ninit_refine=10):
 def run_genetic(bounds=None,POPULATION_SIZE=10,MAX_GENERATIONS=10, 
               P_CROSSOVER=0.1, P_MUTATION=0.1,MUTSIGMA=1,INDPB=0.25,HALL_OF_FAME_SIZE = 10,fitnessfunc=None, seeds=None, 
               plot_fitness_evo=True, plotintermediates=True, plotbest=True, errorargs_withplotting=None,
-              getparskwargs=None, ninit_refine=10):
+              getparskwargs=None, ninit_refine=10,cxbin=False,etacxbin=0):
     bounds=getparskwargs["bounds"]
     def checkBounds(a):
         def decorator(func):
@@ -489,7 +563,10 @@ def run_genetic(bounds=None,POPULATION_SIZE=10,MAX_GENERATIONS=10,
     #toolbox.register("individualCreator", tools.initRepeat, creator.Individual, toolbox.randuni_1, NPARS)
     toolbox.register("populationCreator", tools.initRepeat, list, toolbox.individualCreator)# create the population operator to generate a list of individuals:
 
-    toolbox.register("mate", tools.cxTwoPoint)
+   if not cxbin:
+        toolbox.register("mate", tools.cxTwoPoint)
+    else:
+        toolbox.register("mate", tools.cxSimulatedBinary,eta=etacxbin)
     toolbox.decorate("mate", checkBounds(1))
 
     #if genetic:
@@ -550,12 +627,13 @@ def run_genetic(bounds=None,POPULATION_SIZE=10,MAX_GENERATIONS=10,
             ar=np.asarray(ind)
             fitness=fitnessfunc(ar)[0] #fitnessfunc returns a tupple
             tops.append([fitness,parsetnames,ar,seed, "hof"])
-            if False: #plotintermediates:
+            if plotintermediates:
                 print("HOF ITEM")
                 print(",".join(list(map(str,parsetnames))))
                 print(fitness)
                 print(",".join(list(map(str,ar))))
                 error_and_plot(ar,getparskwargs=getparskwargs,**errorargs_withplotting)
+            
             refinedpars_out=refine_group_pars(ar, getparskwargs=getparskwargs,errorargs=errorargs_withplotting, ninit_refine=ninit_refine)
             fitness=refinedpars_out[1]
             if plotintermediates:
