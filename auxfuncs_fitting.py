@@ -185,7 +185,7 @@ def psi_linear_simple(parset,x, verbose=False, return_out=False):
 
     
 def return_parsdict(groups, pars_per_group=None,pars_per_group_refine=None, fixedpars=None,
-                    ratenames=None,inputnames=["GFP","CTR","LOW","MID","HIGH"], parranges=None,
+                    ratenames=None,inputnames=["GFP","CTR","LOW","MID","HIGH"], npars_mask_input=5,parranges=None,
                     minv=-3, maxv=3):
     """Necessary array idxs for first global optimization, then refinement of groups, then refinement of WT and endo."""
     
@@ -324,12 +324,13 @@ def return_parsdict(groups, pars_per_group=None,pars_per_group_refine=None, fixe
             else:
                 boundsdict[group].append(boundsdict_[x])
 
-    mask_input=np.ones((ngroups,5),dtype=bool) #minigene does not have MID. 
-    for g in range(ngroups):
-        group=groups[g]
+    mask_input=np.ones((ngroups,npars_mask_input),dtype=bool) #minigene does not have MID. 
+    if npars_mask_input>4:
+        for g in range(ngroups):
+            group=groups[g]
 
-        if not "endo" in group and "MID" in inputnames:
-            mask_input[g,inputnames.index("MID")]=False
+            if not "endo" in group and "MID" in inputnames:
+                mask_input[g,inputnames.index("MID")]=False
 
     getparskwargs["idxsdict_refine"]["idxs_tofixrefine"]=idxs_tofixrefine
 
