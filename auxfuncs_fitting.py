@@ -116,6 +116,44 @@ def psi_linear_system_noalpha_lessparsv1(parset,x, verbose=False, return_out=Fal
     else:
         return psi
 
+def psi_linear_system_noalpha_lessparsv2(parset,x, verbose=False, return_out=False):
+    c2,c4,c7_,ke,kis=parset
+    alpha0=1
+    delta=1
+    c1=1
+    c3_=1
+    c8_=1
+    c7=c1*c7_
+    c8=c2*c8_
+    kisr_=1
+    kisr=kis*kisr_
+    kes=ke
+    kesr=kes
+    c3=c3_*x
+    c5=c3
+    c6=c4
+    #steady-state AX+B=0-->AX=-B. So negative sign in alpha0
+    B=np.array([-alpha0,0,0,0,0,0]).reshape(6,1) 
+    A=np.array([[-(ke+c1+c3),c2,c4,0,0,0], #P
+                [c1,-(c2+c5+kes+kis),0,c6,0,0], #PS
+                [c3,0,-(c4+c7+ke),c8,0,0], #PR
+                [0,c5,c7,-(c8+c6+kesr+kisr),0,0], #PSR
+                [ke,kes,ke,kesr,-delta,0], #E
+                [0,kis,0,kisr,0,-delta]],dtype=float) #I
+    #print(A)
+    #print(B)
+    out=np.linalg.solve(A,B) #solves AX=B
+    #print(out)
+    
+    p,ps,pr,psr,E,I=out
+    psi=100*I/(I+E)
+    if verbose:
+        print(out.flatten(), ", psi:", psi)
+    if return_out:
+        return [psi, out]
+    else:
+        return psi
+
 def psi_linear_simple(parset,x, verbose=False, return_out=False):
     alpha0, c1,c2,c5_,c6,ke,kes,kis,kisr_=parset
     delta=1
