@@ -333,7 +333,7 @@ def return_parsdict(groups, pars_per_group=None,pars_per_group_refine=None, fixe
             if not "endo" in group and "MID" in inputnames:
                 mask_input[g,inputnames.index("MID")]=False
     else:
-        mask_input=np.ones((ngroups,len(inputnames),dtype=bool) #some functions below assume there are always 5 inputnames
+        mask_input=np.ones((ngroups,len(inputnames)),dtype=bool) #some functions below assume there are always 5 inputnames
 
     getparskwargs["idxsdict_refine"]["idxs_tofixrefine"]=idxs_tofixrefine
 
