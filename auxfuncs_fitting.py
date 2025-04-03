@@ -441,7 +441,7 @@ def error_and_plot(allpars_,npars=1,refined=False,data=None,additional_data=None
     allparsets=get_parameters_per_group(allpars_,npars=npars,**getparskwargs, **getparskwargs[idxsdictname])
     
     allerror=np.zeros(len(allparsets))
-    ninput=len(mask_input)
+    ninput=len(mask_input[0])
     
     for g in range(len(allparsets)):
         xvec_psi=allparsets[g,0:ninput][mask_input[g]]
@@ -481,7 +481,7 @@ def error_and_plot_increasinginput(allpars_,npars=1,refined=False,data=None,addi
     """
     mask_input=getparskwargs["mask_input"]
     
-    ninput=len(mask_input)
+    ninput=len(mask_input[0])
     if plot:
         nrows=plotkwargs["nrow"]
         ncols=plotkwargs["ncol"]
