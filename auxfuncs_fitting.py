@@ -185,7 +185,7 @@ def psi_linear_simple(parset,x, verbose=False, return_out=False):
 
     
 def return_parsdict(groups, pars_per_group=None,pars_per_group_refine=None, fixedpars=None,
-                    ratenames=None,inputnames=["GFP","CTR","LOW","MID","HIGH"], npars_mask_input=5,parranges=None,
+                    ratenames=None,inputnames=["GFP","CTR","LOW","MID","HIGH"], parranges=None,
                     minv=-3, maxv=3):
     """Necessary array idxs for first global optimization, then refinement of groups, then refinement of WT and endo."""
     
@@ -324,13 +324,16 @@ def return_parsdict(groups, pars_per_group=None,pars_per_group_refine=None, fixe
             else:
                 boundsdict[group].append(boundsdict_[x])
 
-    mask_input=np.ones((ngroups,npars_mask_input),dtype=bool) #minigene does not have MID. 
-    if npars_mask_input>4:
+    
+    if len(inputnames)>4:
+        mask_input=np.ones((ngroups,5),dtype=bool) 
         for g in range(ngroups):
             group=groups[g]
 
             if not "endo" in group and "MID" in inputnames:
                 mask_input[g,inputnames.index("MID")]=False
+    else:
+        mask_input=np.ones((ngroups,len(inputnames),dtype=bool) #some functions below assume there are always 5 inputnames
 
     getparskwargs["idxsdict_refine"]["idxs_tofixrefine"]=idxs_tofixrefine
 
@@ -438,7 +441,7 @@ def error_and_plot(allpars_,npars=1,refined=False,data=None,additional_data=None
     allparsets=get_parameters_per_group(allpars_,npars=npars,**getparskwargs, **getparskwargs[idxsdictname])
     
     allerror=np.zeros(len(allparsets))
-    ninput=5
+    ninput=len(mask_input)
     
     for g in range(len(allparsets)):
         xvec_psi=allparsets[g,0:ninput][mask_input[g]]
@@ -477,6 +480,8 @@ def error_and_plot_increasinginput(allpars_,npars=1,refined=False,data=None,addi
     pars_per_group to True if allpars_ has already each parameter per group, the first is the xvec_psi
     """
     mask_input=getparskwargs["mask_input"]
+    
+    ninput=len(mask_input)
     if plot:
         nrows=plotkwargs["nrow"]
         ncols=plotkwargs["ncol"]
@@ -494,7 +499,7 @@ def error_and_plot_increasinginput(allpars_,npars=1,refined=False,data=None,addi
     allparsets=get_parameters_per_group(allpars_,npars=npars,**getparskwargs, **getparskwargs[idxsdictname])
     
     allerror=np.zeros(len(allparsets))
-    ninput=5
+    #ninput=5
     
     for g in range(len(allparsets)):
         xvec_psi=allparsets[g,0:ninput][mask_input[g]]
@@ -538,8 +543,10 @@ def error_and_plot_increasinginput(allpars_,npars=1,refined=False,data=None,addi
 def error_refine_singlegroup(pars, data=None,idxs_pars=None,reference_parset=None, mask_input=None, errorfunc=None, sysfunc=None, penaltyinput=0):
     parset=reference_parset.copy()
     parset[idxs_pars]=10**pars
-    xvec_psi=parset[0:5][mask_input]
-    rates=parset[5:]
+    
+    ninput=len(mask_input)
+    xvec_psi=parset[0:ninput][mask_input]
+    rates=parset[ninput:]
     model=out_event(rates,xvec_psi,solve_linear_system=sysfunc)
     if np.any(np.diff(xvec_psi)<0):
         add=penaltyinput
